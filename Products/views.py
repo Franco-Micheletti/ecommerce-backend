@@ -87,4 +87,17 @@ class Filter(APIView):
             
             return Response(response_data,status=HTTP_200_OK)
 
-            
+class Paly(APIView):
+
+    def get(self,request,product_name=None):
+
+        response_data = {
+
+            "status":"TODO LISO AMIGO",
+            "clima":"Mañana a la mañana llueve",
+            "fer":"duerme",
+            "paly":"lee esto",
+            "augusto":"pete"
+        }
+
+        return Response(response_data, status=HTTP_200_OK)
