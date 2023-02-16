@@ -5,9 +5,9 @@
 .env.test.local
 .env.production.local
 .env
-/Categories/migrations/**
-/login/migrations/**
-/Products/migrations/**
-/ProductTypes/migrations/**
-/signup/migrations/**
-/Departments/migrations/**
+# /Categories/migrations/**
+# /login/migrations/**
+# /Products/migrations/**
+# /ProductTypes/migrations/**
+# /signup/migrations/**
+# /Departments/migrations/**
