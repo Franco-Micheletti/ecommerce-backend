@@ -6,16 +6,22 @@ from django.contrib.auth.models import User
 from .models import ProductsModel,CoffeTables
 from .serializers import ProductsSerializer,CoffeTablesSerializer
 from rest_framework.status import (HTTP_404_NOT_FOUND,HTTP_200_OK,HTTP_400_BAD_REQUEST,HTTP_401_UNAUTHORIZED)
-# from django.db.models import Q
+from django.db.models import Q
 from utilities.product_type_classes import product_types
 from django.db.models import Count,Max
+import json
 
 class Filter(APIView):
-    def get(self,request,product_name=None):
+    """
+    
+
+    """
+    def get(self,request,filters=None,product_name=None):
 
         response_data = {
                             "filters":{
-                                "Price":{
+                                "product_type":"",
+                                "price":{
                                     "max_price":0
                                 }
                             }
@@ -44,6 +50,10 @@ class Filter(APIView):
                 
                 # Get the most popular product type dictionary
                 most_popular_product_type = max(product_type_ids,key=product_type_ids.get)
+                
+                # Add the product_type to the JSON data
+
+                response_data["filters"]["product_type"] = most_popular_product_type
 
                 # Create list of product types
                 for field in product_types[most_popular_product_type][0]._meta.get_fields()[3:]:
@@ -53,7 +63,7 @@ class Filter(APIView):
                 # Add each filter ( a column in DB table ) to the filters key in response_data
                 for column in product_type_fields_list:
                     
-                    column = column.capitalize().replace("_"," ")
+                    column = column
                     response_data["filters"][column] = {} 
 
                 # 0 - For model of the product type
@@ -64,16 +74,25 @@ class Filter(APIView):
                     values = products.values(column)
                     for value in values:
                         try:
-                            response_data["filters"][column.capitalize().replace("_"," ")][value[column]] += 1
+                            response_data["filters"][column][value[column]] += 1
                         except:
-                            response_data["filters"][column.capitalize().replace("_"," ")][value[column]] = 1
+                            response_data["filters"][column][value[column]] = 1
+
+                # Apply filters selected by the user before serializer
+                
+                if filters:
+                    filters_applied_dict = json.loads(filters)
+                    filtered_products = products.filter(**filters_applied_dict).distinct()
+                else:
+                    filtered_products = products
 
                 # 1 - For serializer of the product type
-                products_data = product_types[most_popular_product_type][1](products,many=True).data
+                # Serializing products by product type
+                products_data = product_types[most_popular_product_type][1](filtered_products,many=True).data
                 
-                # Get maximum price of products
-                max_price = CoffeTables.objects.aggregate(Max('product__price'))
-                response_data["filters"]["Price"]["max_price"] = max_price['product__price__max']
+                # Get the maximum price of all products
+                max_price = filtered_products.aggregate(Max('product__price'))
+                response_data["filters"]["price"]["max_price"] = max_price['product__price__max']
                 # Response
                 response_data["products"] = products_data
                 
@@ -87,17 +106,24 @@ class Filter(APIView):
             
             return Response(response_data,status=HTTP_200_OK)
 
-class Paly(APIView):
+class SelectedFilterEndpoint(APIView):
 
-    def get(self,request,product_name=None):
+    def get(self,request,product_type,filters_applied):
 
-        response_data = {
+        filtered_data = CoffeTables.objects.all()
+        
+        if filters_applied:
+            
+            filters_applied_dict = json.loads(filters_applied)
+            
+            filtered_data = filtered_data.filter(**filters_applied_dict).distinct()
 
-            "status":"TODO LISO AMIGO",
-            "clima":"Mañana a la mañana llueve",
-            "fer":"duerme",
-            "paly":"lee esto",
-            "augusto":"pete"
-        }
-
-        return Response(response_data, status=HTTP_200_OK)
+            if filtered_data:
+                results = CoffeTablesSerializer(filtered_data,many=True).data
+                return Response(results,status=HTTP_200_OK)
+            else:
+                return Response([],status=HTTP_200_OK)
+            
+        else:
+            return Response([],status=HTTP_200_OK)
+                

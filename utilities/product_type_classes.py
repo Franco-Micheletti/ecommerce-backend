@@ -6,5 +6,4 @@ product_types= {
                 1:[CoffeTables,CoffeTablesSerializer],
                 2:[Laptops,LaptopsSerializer]
             
-            
                }
