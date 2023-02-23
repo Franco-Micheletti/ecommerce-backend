@@ -11,6 +11,6 @@ urlpatterns = [
     
     path("products/",views.Filter.as_view()),
 
-    path("apply_filter/product_type=<str:product_type>&filters_applied=<filters_applied>",views.SelectedFilterEndpoint.as_view())
+    # path("apply_filter/product_type=<str:product_type>&filters_applied=<filters_applied>",views.SelectedFilterEndpoint.as_view())
     
 ]

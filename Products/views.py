@@ -27,6 +27,10 @@ class Filter(APIView):
                             }
                         }
         
+        # Price init 
+        min_price = 0.01
+        max_price = 0.01
+
         if product_name:
             if len(str(product_name)) > 3:
                 sample = ProductsModel.objects.filter(product_name__icontains=str(product_name))[:20]
@@ -81,8 +85,19 @@ class Filter(APIView):
                 # Apply filters selected by the user before serializer
                 
                 if filters:
-                    filters_applied_dict = json.loads(filters)
-                    filtered_products = products.filter(**filters_applied_dict).distinct()
+                    print(filters)
+                    # Convert string to python dictionary
+                    filters_json = json.loads(filters)
+                    # Variable init
+                    filtered_products = products
+                    # FEATURES FILTER 
+                    if "features" in filters_json:
+                        filtered_products = filtered_products.filter(**filters_json["features"]).distinct()
+                    # PRICE FILTER
+                    if "price" in filters_json:
+                        min_price = filters_json["price"]["min_price"]
+                        max_price = filters_json["price"]["max_price"]
+                        filtered_products = filtered_products.filter(product__price__range=(min_price,max_price) ).distinct()
                 else:
                     filtered_products = products
 
@@ -106,24 +121,5 @@ class Filter(APIView):
             
             return Response(response_data,status=HTTP_200_OK)
 
-class SelectedFilterEndpoint(APIView):
 
-    def get(self,request,product_type,filters_applied):
-
-        filtered_data = CoffeTables.objects.all()
-        
-        if filters_applied:
-            
-            filters_applied_dict = json.loads(filters_applied)
-            
-            filtered_data = filtered_data.filter(**filters_applied_dict).distinct()
-
-            if filtered_data:
-                results = CoffeTablesSerializer(filtered_data,many=True).data
-                return Response(results,status=HTTP_200_OK)
-            else:
-                return Response([],status=HTTP_200_OK)
-            
-        else:
-            return Response([],status=HTTP_200_OK)
                 
