@@ -1,20 +1,35 @@
 from rest_framework import serializers
-from .models import ProductsModel,CoffeTables,Laptops
-          
+from .models import(ProductsModel,
+                    CoffeTables,
+                    Laptops,
+                    Brand,
+                    EnergyDrinks)
+
+class BrandSerializer(serializers.ModelSerializer):
+
+    class Meta:
+
+        model = Brand
+        fields = ('brand_name',)
+        
 class ProductsSerializer(serializers.ModelSerializer):
+    
+    brand = BrandSerializer(Brand,read_only=True)
     class Meta:
         model = ProductsModel
         fields = (  'id',
                     'product_name',
                     'product_image_tag',
                     'product_type',
-                    'brands',                                   
+                    'brand',                                   
                     'price',
                     'retailer'
                   )
 
 class CoffeTablesSerializer(serializers.ModelSerializer):
-    product = ProductsSerializer(required=False, read_only=True)
+
+    product = ProductsSerializer(ProductsModel,read_only=True)
+
     class Meta:
         model   = CoffeTables
         fields  = (
@@ -32,7 +47,9 @@ class CoffeTablesSerializer(serializers.ModelSerializer):
                  )
 
 class LaptopsSerializer(serializers.ModelSerializer):
-    product = ProductsSerializer(required=False, read_only=True)
+
+    product = ProductsSerializer(ProductsModel,read_only=True)
+
     class Meta:
         model   = Laptops
         fields  = ( 'id',
@@ -48,3 +65,16 @@ class LaptopsSerializer(serializers.ModelSerializer):
                     'wireless_capability',  
                     'color'                
                  )
+
+class EnergyDrinksSerializer(serializers.ModelSerializer):
+
+    product = ProductsSerializer(ProductsModel,read_only=True)
+
+    class Meta:
+        model   = EnergyDrinks
+        fields  = ( 'id',
+                    'product',              
+                    'flavor',
+                    'special_diet_needs'                
+                 )
+
