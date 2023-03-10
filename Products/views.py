@@ -11,113 +11,58 @@ from django.db.models import Q
 from utilities.product_type_classes import product_types
 from django.db.models import Count,Max
 import json
+import math
+from Products.functions.make_sample import make_sample
+from Products.functions.get_product_type_data import get_product_type_data
+from Products.functions.count_different_values_of_each_column import count_different_values_of_each_column
 
-class Filter(APIView):
+
+class SearchWithFilters(APIView):
     """
-    
+    METHODS:
 
+    GET
+
+    Returns products and filters filtering by product name and user applied filters
     """
-    def get(self,request,filters=None,product_name=None,page=1):
+    def get(self,request,filters,product_name,page=1):
 
-        response_data = {
-                            "filters":{
-                                "product_type":"",
-                                "price":{
-                                    "max_price":0
-                                }
-                            }
-                        }
-        
-        # Price init 
-        min_price = 0.01
-        max_price = 0.01
-
-        if product_name:
-            if len(str(product_name)) > 3:
-                sample = ProductsModel.objects.filter(product_name__icontains=str(product_name))[:20]
-            else:
-                return Response({"info":"min_characters",
-                                 "message":"Search text must have more than 3 letters"},status=HTTP_400_BAD_REQUEST)
-
+        if product_name and filters and page:
+            sample = make_sample(product_name)
             if sample:
-
-                # Count number of each product type for better searching
-                # Then query the corresponding product type table
-
-                product_type_ids = {}
-                product_type_fields_list = []
-
-                for product in sample:
-                    try:
-                        product_type_ids[product.product_type_id] += 1
-                    except:
-                        product_type_ids[product.product_type_id] = 1
+                # Creates response data with the product properties.
+                # Each type of product have different properties , we need to find the product type first.
+                # The function returns the matching product type based on the sample result
                 
-                # Get the most popular product type dictionary
-                most_popular_product_type = max(product_type_ids,key=product_type_ids.get)
+                (response_data,matching_product_type,product_type_fields_list) = get_product_type_data(sample)
                 
-                # Add the product_type to the JSON data
+                # Now that we know the model we can make a bigger and more precise search 
+                # looking for a name that matches the query in the matching product type's table
 
-                response_data["filters"]["product_type"] = most_popular_product_type
-
-                # Create list of product types
-                for field in product_types[most_popular_product_type][0]._meta.get_fields()[3:]:
-                    
-                    product_type_fields_list.append(field.name)
-
-                # Add each property ( a column in DB table ) to the filters key in response_data
-                for column in product_type_fields_list:
-                    
-                    column = column
-                    response_data["filters"][column] = {} 
-
-                # 0 - For model of the product type
-                product_type_model = product_types[most_popular_product_type][0]
-
+                product_type_model = product_types[matching_product_type][0]
+                product_type_serializer = product_types[matching_product_type][1]
                 products = product_type_model.objects.filter(product__product_name__icontains=str(product_name))
                 
-                # Limit the results when filters are not applied , 
-                # prevents the following error: "Cannot filter a query once a slice has been taken"
-
-                if not filters:
-                    products[0:1000]
+                # Count all the different values of each column
                 
-                # Count each possible value in attribute
-                for column in product_type_fields_list:
-                    values = products.values(column)
-                    for value in values:
-                        try:
-                            response_data["filters"][column][value[column]] += 1
-                        except:
-                            response_data["filters"][column][value[column]] = 1
+                response_data = count_different_values_of_each_column(response_data,products,product_type_fields_list)
 
-                # Apply filters selected by the user before serializer
-                
-                if filters:
-                    print(filters)
-                    # Convert string to python dictionary
-                    filters_json = json.loads(filters)
-                    # Variable init
-                    filtered_products = products
-                    # FEATURES FILTER 
-                    if "features" in filters_json:
-                        filtered_products = filtered_products.filter(**filters_json["features"]).distinct()
-                    # PRICE FILTER
-                    if "price" in filters_json:
-                        min_price = filters_json["price"]["min_price"]
-                        max_price = filters_json["price"]["max_price"]
-                        filtered_products = filtered_products.filter(product__price__range=(min_price,max_price) ).distinct()
-                    # ADD OFFSET FOR PAGINATION
-                    total_products    = filtered_products[0:1000]
-                    filtered_products = filtered_products[0:(int(page)*30)]
+                # Apply filters selected by the user before serializing
+
+                filters_json = json.loads(filters)
+                filtered_products = products
+                # FEATURES FILTER 
+                if "features" in filters_json:
+                    filtered_products = filtered_products.filter(**filters_json["features"]).distinct()
+                # PRICE FILTER
+                if "price" in filters_json:
+                    min_price = filters_json["price"]["min_price"]
+                    max_price = filters_json["price"]["max_price"]
+                    filtered_products = filtered_products.filter(product__price__range=(min_price,max_price) ).distinct()
+                # ADD OFFSET FOR PAGINATION
+                total_products    = filtered_products[0:1000]
+                filtered_products = filtered_products[(int(page)-1)*30:int(page)*30]
                     
-                else:
-                    # Without Filters selected by user
-                    filtered_products = products[0:(int(page)*30)]
-                
-                
-                # 1 - For serializer of the product type
-                product_type_serializer = product_types[most_popular_product_type][1]
                 # Serializing products by product type
                 products_data = product_type_serializer(filtered_products,many=True).data
                 
@@ -127,18 +72,77 @@ class Filter(APIView):
                 # add products to response data
                 response_data["products"] = products_data
                 # Add list of pages to render pages button in frontend
-                if filters:
-                    response_data["pages"] = [ x for x in range(1,round((len(total_products))/30)+1)]
-                else:
-                    response_data["pages"] = [ x for x in range(1,round((len(products))/30)+1)]
+                response_data["pages"] = [ x for x in range(1,math.ceil((len(total_products))/30)+1)]
+                response_data["total_results"] = len(total_products)
                 
                 return Response(response_data,status=HTTP_200_OK)
             else:
                 return Response({},status=HTTP_200_OK)
         else:
+            response_data = {"message":"Missing parameters"}
+            return Response(response_data,status=HTTP_400_BAD_REQUEST)
 
-            return Response(response_data,status=HTTP_200_OK)
+class SearchWithOutFilters(APIView):
+    """
+    METHODS:
+    
+    GET
 
+    Returns products and filters filtering by product name
+    """
+    def get(self,request,product_name,page):
+
+        if product_name:
+            sample = make_sample(product_name)
+            if sample:
+                # Creates response data with the product properties.
+                # Each type of product have different properties , we need to find the product type first.
+                # The function returns the matching product type based on the sample result
+                
+                ( response_data,
+                  matching_product_type,
+                  product_type_fields_list ) = get_product_type_data(sample)
+                
+                # Now that we know the model we can make a bigger and more precise search 
+                # looking for a name that matches the query in the matching product type's table
+                
+                product_type_model = product_types[matching_product_type][0]
+                product_type_serializer = product_types[matching_product_type][1]
+                products = product_type_model.objects.filter(product__product_name__icontains=str(product_name))[0:1000]
+                
+                # Count all the different values of each column
+                
+                response_data = count_different_values_of_each_column(response_data,products,product_type_fields_list)
+
+                # Results per page
+
+                products = products[(int(page)-1)*30:int(page)*30]
+                
+                # Serializing objects
+
+                products_data = product_type_serializer(products,many=True).data
+
+                # Get the maximum price of all products
+
+                max_price = products.aggregate(Max('product__price'))
+                response_data["filters"]["price"]["max_price"] = max_price['product__price__max']
+
+                # Add products to response data
+
+                response_data["products"] = products_data
+
+                # Add list of pages to render pages button in frontend
+
+                response_data["pages"] = [ x for x in range(1,math.ceil((len(products))/30)+1)]
+                response_data["total_results"] = len(products)
+
+                return Response(response_data,status=HTTP_200_OK)
+            else:
+                return Response({},status=HTTP_200_OK)
+        else:
+            response_data = {"message":"Product name not provided"}
+            return Response(response_data,status=HTTP_400_BAD_REQUEST)
+        
 class Product(APIView):
 
     def post(self,request):

@@ -14,7 +14,8 @@ class BrandSerializer(serializers.ModelSerializer):
         
 class ProductsSerializer(serializers.ModelSerializer):
     
-    brand = BrandSerializer(Brand,read_only=True)
+    brand    = BrandSerializer(Brand,read_only=True)
+    
     class Meta:
         model = ProductsModel
         fields = (  'id',
@@ -23,7 +24,8 @@ class ProductsSerializer(serializers.ModelSerializer):
                     'product_type',
                     'brand',                                   
                     'price',
-                    'retailer'
+                    'retailer',
+                    "quantity"
                   )
 
 class CoffeTablesSerializer(serializers.ModelSerializer):

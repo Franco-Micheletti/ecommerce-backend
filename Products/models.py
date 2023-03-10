@@ -20,6 +20,7 @@ class ProductsModel(models.Model):
     brand                = models.ForeignKey(Brand,on_delete=models.CASCADE)
     price                = models.FloatField(null=True,blank=True)
     retailer             = models.CharField(max_length=300,null=True,blank=True)
+    quantity             = models.SmallIntegerField(default=1,null=True,blank=True)
 
 # Specific Product Type Tables
 
