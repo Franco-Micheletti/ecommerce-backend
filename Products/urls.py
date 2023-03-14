@@ -10,9 +10,14 @@ urlpatterns = [
     path("products/product_name=<product_name>&page=<page>",views.SearchWithOutFilters.as_view()),
     # Products
     path("products/home",views.ProductsHome.as_view()),
-    # Specific Product
+    # Create Product
     path("product/create",views.Product.as_view()),
+    # test
+    path("test/",views.Test.as_view()),
+    # Get Product
     path("product/id=<id>",views.Product.as_view()),
-    path("product/properties/id=<id>",views.GetProductProperties.as_view())
-
+    # Get Product By Property
+    path("product/property=<property>&value=<value>",views.GetProductsByProperty.as_view())
+    
+    
 ]

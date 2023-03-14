@@ -4,7 +4,6 @@ def get_product_type_data(sample):
 
     response_data = {
                     "filters":{
-                        "product_type":"",
                         "price":{
                             "max_price":0
                         }

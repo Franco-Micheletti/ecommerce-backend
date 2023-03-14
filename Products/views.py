@@ -3,9 +3,10 @@ from rest_framework.decorators import permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.contrib.auth.models import User
-from .models import ProductsModel,CoffeTables,Brand
+from .models import ProductsModel,Properties,Values,PropertyValuePairs,Variants,ProductProperties,Brand
 from ProductTypes.models import ProductTypes
-from .serializers import ProductsSerializer,CoffeTablesSerializer
+from .serializers import (ProductsSerializer,PropertiesSerializer,ValuesSerializer,PropertyValuePairsSerializer,
+ProductPropertiesSerializer,GetProductByPropertySerializer)
 from rest_framework.status import (HTTP_404_NOT_FOUND,HTTP_200_OK,HTTP_400_BAD_REQUEST,HTTP_401_UNAUTHORIZED)
 from django.db.models import Q
 from utilities.product_type_classes import product_types
@@ -15,7 +16,7 @@ import math
 from Products.functions.make_sample import make_sample
 from Products.functions.get_product_type_data import get_product_type_data
 from Products.functions.count_different_values_of_each_column import count_different_values_of_each_column
-
+import re
 
 class SearchWithFilters(APIView):
     """
@@ -77,7 +78,7 @@ class SearchWithFilters(APIView):
                 
                 return Response(response_data,status=HTTP_200_OK)
             else:
-                return Response({},status=HTTP_200_OK)
+                return Response({"match":0},status=HTTP_200_OK)
         else:
             response_data = {"message":"Missing parameters"}
             return Response(response_data,status=HTTP_400_BAD_REQUEST)
@@ -93,52 +94,51 @@ class SearchWithOutFilters(APIView):
     def get(self,request,product_name,page):
 
         if product_name:
-            sample = make_sample(product_name)
-            if sample:
-                # Creates response data with the product properties.
-                # Each type of product have different properties , we need to find the product type first.
-                # The function returns the matching product type based on the sample result
                 
-                ( response_data,
-                  matching_product_type,
-                  product_type_fields_list ) = get_product_type_data(sample)
-                
-                # Now that we know the model we can make a bigger and more precise search 
-                # looking for a name that matches the query in the matching product type's table
-                
-                product_type_model = product_types[matching_product_type][0]
-                product_type_serializer = product_types[matching_product_type][1]
-                products = product_type_model.objects.filter(product__product_name__icontains=str(product_name))[0:1000]
-                
-                # Count all the different values of each column
-                
-                response_data = count_different_values_of_each_column(response_data,products,product_type_fields_list)
+                response_data = {
+                    "filters":{
+                        "price":{
+                            "max_price":0
+                        }
+                    }
+                }
 
-                # Results per page
+                products = ProductsModel.objects.filter(product_name__icontains=str(product_name))[0:1000]
+                product_properties = ProductProperties.objects.filter(product__product_name__icontains=str(product_name))[0:1000]
+                if product_properties:
+                    for object in product_properties:
+                        try:
+                            response_data["filters"][object.property_value_pair.property.property_name] += 1
+                        except:
+                            response_data["filters"][object.property_value_pair.property.property_name] = 1
 
-                products = products[(int(page)-1)*30:int(page)*30]
-                
-                # Serializing objects
+                if product_properties:
+                    
+                    # Results per page
 
-                products_data = product_type_serializer(products,many=True).data
+                    products_slice = products[(int(page)-1)*30:int(page)*30]
+                    
+                    # Serializing objects
 
-                # Get the maximum price of all products
+                    products_data = ProductsSerializer(products_slice,many=True).data
 
-                max_price = products.aggregate(Max('product__price'))
-                response_data["filters"]["price"]["max_price"] = max_price['product__price__max']
+                    # Add products to response data
 
-                # Add products to response data
+                    response_data["products"] = products_data
 
-                response_data["products"] = products_data
+                    # Get the maximum price of all products
 
-                # Add list of pages to render pages button in frontend
+                    max_price = products.aggregate(Max('price'))
+                    response_data["filters"]["price"]["max_price"] = max_price['price__max']
 
-                response_data["pages"] = [ x for x in range(1,math.ceil((len(products))/30)+1)]
-                response_data["total_results"] = len(products)
+                    # Add list of pages to render pages button in frontend
 
-                return Response(response_data,status=HTTP_200_OK)
-            else:
-                return Response({},status=HTTP_200_OK)
+                    response_data["pages"] = [ x for x in range(1,math.ceil((len(products))/30)+1)]
+                    response_data["total_results"] = len(products)
+                    
+                    return Response(response_data,status=HTTP_200_OK)
+                else:
+                    return Response({"match":0},status=HTTP_200_OK) 
         else:
             response_data = {"message":"Product name not provided"}
             return Response(response_data,status=HTTP_400_BAD_REQUEST)
@@ -156,7 +156,7 @@ class Product(APIView):
             product_name         = request_data["product_name"],
             product_image_tag    = request_data["product_image_tag"],
             product_type         = ProductTypes.objects.get(id=request_data["product_type_id"]),
-            brand               = Brand.objects.get(id=request_data["brand_id"]),
+            brand                = Brand.objects.get(id=request_data["brand_id"]),
             price                = request_data["price"],
             retailer             = request_data["retailer"]
         )
@@ -187,15 +187,41 @@ class Product(APIView):
 
         product = ProductsModel.objects.get(id=id)
 
-        product_data = ProductsSerializer(product).data
+        if product:
+            
+            product_type_model            = product_types[product.product_type.id][0]
+            product_type_model_serializer = product_types[product.product_type.id][1]
 
-        response_data = {
-                            "product":product_data
-                        }
+            product_type_object      = product_type_model.objects.get(product_id=id)
+            product_type_object_data = product_type_model_serializer(product_type_object).data
+            
+            product_type_object_data.pop('id')
+
+            response_data = {"basic":product_type_object_data["product"]}
+
+            product_type_object_data.pop('product')
+
+            response_data["properties"] = product_type_object_data
+           
+            return Response(response_data,status=HTTP_200_OK)
+        else:
+            return Response("No product have been found with the ID provided")
+
+    def delete(self,request,id):
+
+        product = ProductsModel.objects.get(id=id)
 
         if product:
-            return Response(response_data,status=HTTP_200_OK)
-        
+            product.delete()
+
+            return Response("Product deleted successfully",HTTP_200_OK)
+        else:
+            return Response("Product doesn't exist",HTTP_400_BAD_REQUEST)
+    
+    def put(self,request,id):
+
+        return Response({},HTTP_200_OK)
+    
 class ProductsHome(APIView):
 
     def get(self,request):
@@ -208,28 +234,72 @@ class ProductsHome(APIView):
         else:
             return Response({},HTTP_200_OK)
     
-class GetProductProperties(APIView):
+        
+class Test(APIView):
 
-    def get(self,request,id):
+    def post(self,request):
 
         request_data = request.data
 
-        product = ProductsModel.objects.get(id=id)
-        
-        if product:
-
-            product_type_model            = product_types[product.product_type.id][0]
-            product_type_model_serializer = product_types[product.product_type.id][1]
-
-            product_type_object      = product_type_model.objects.get(product_id=id)
-            product_type_object_data = product_type_model_serializer(product_type_object).data
+        new_product = ProductsModel.objects.create(
             
-            product_type_object_data.pop('id')
-            product_type_object_data.pop('product')
+            product_name         = request_data["product_name"],
+            product_image_tag    = request_data["product_image_tag"],
+            product_type         = ProductTypes.objects.get(id=request_data["product_type_id"]),
+            brand                = Brand.objects.get(id=request_data["brand_id"]),
+            price                = request_data["price"],
+            retailer             = request_data["retailer"]
+        )
+
+        properties = request_data["properties"]
+
+        if properties:
+            for dict_ in properties:
+                
+                property = Properties.objects.get_or_create(property_name=dict_[0])
+                value    = Values.objects.get_or_create(value_name=dict_[1])
+                property_value_pair = PropertyValuePairs.objects.get_or_create(property=property[0],value=value[0])
+                product_properties  = ProductProperties.objects.get_or_create(product=new_product,property_value_pair=property_value_pair[0])
+            
+            # If successful
+
+            # product_properties_queryset = ProductProperties.objects.filter(product=new_product)
+            # properties_data = {object.property_value_pair.property.property_name:object.property_value_pair.value.value_name for object in product_properties_queryset }
+            
             response_data = {
-                                "product_properties":product_type_object_data
-                            }
-            
+                "message":"product created successfully",
+                "product":new_product.id
+            }
+
             return Response(response_data,status=HTTP_200_OK)
         else:
-            return Response("No product have been found with the ID provided")
+            return Response("Properties is required",HTTP_400_BAD_REQUEST)
+
+class GetProductsByProperty(APIView):
+
+    def get(self,request,property,value):
+
+        response_data = {}
+        
+        try:
+            property_object = Properties.objects.get(property_name=property)
+            value_object    = Values.objects.get(value_name=value)
+            property_value_pair = PropertyValuePairs.objects.get(property=property_object,value=value_object)
+        except:
+            return Response("Property/Value pair not found",status=HTTP_400_BAD_REQUEST)
+        product_properties_objects = ProductProperties.objects.filter(property_value_pair=property_value_pair)
+        
+        if product_properties_objects:
+            
+            for index,object in enumerate(product_properties_objects):
+                product_properties_queryset = ProductProperties.objects.filter(product=object.product)
+                properties_data = {object.property_value_pair.property.property_name:object.property_value_pair.value.value_name for object in product_properties_queryset }
+                response_data[index] = ProductsSerializer(object.product).data
+                response_data[index]["properties"] = properties_data        
+            
+            return Response(response_data,status=HTTP_200_OK)                                  
+        
+        else:
+            return Response("Property pair not found",status=HTTP_400_BAD_REQUEST)
+        
+        

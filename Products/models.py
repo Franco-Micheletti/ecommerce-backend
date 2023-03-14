@@ -22,7 +22,25 @@ class ProductsModel(models.Model):
     retailer             = models.CharField(max_length=300,null=True,blank=True)
     quantity             = models.SmallIntegerField(default=1,null=True,blank=True)
 
-# Specific Product Type Tables
+class Properties(models.Model):
+    property_name = models.CharField(max_length=300,null=True,blank=True)
+
+class Values(models.Model):
+    value_name = models.CharField(max_length=300,null=True,blank=True)
+
+class PropertyValuePairs(models.Model):
+    property = models.ForeignKey(Properties,on_delete=models.CASCADE)
+    value    = models.ForeignKey(Values,on_delete=models.CASCADE)
+
+class ProductProperties(models.Model):
+    product             = models.ForeignKey(ProductsModel,on_delete=models.CASCADE)
+    property_value_pair = models.ForeignKey(PropertyValuePairs,on_delete=models.CASCADE)
+
+class Variants(models.Model):
+    product             = models.ForeignKey(ProductsModel,on_delete=models.CASCADE,related_name="product")
+    product_variant     = models.ForeignKey(ProductsModel,on_delete=models.CASCADE,related_name="product_variant")
+    property_value_pair = models.ForeignKey(PropertyValuePairs,on_delete=models.CASCADE)
+    
 
 class CoffeTables(models.Model):
 
@@ -42,6 +60,7 @@ class CoffeTables(models.Model):
     features            = models.CharField(max_length=300,null=True,blank=True)
     frame_material      = models.CharField(max_length=300,null=True,blank=True)
     recommended_room    = models.CharField(max_length=300,null=True,blank=True)
+
 
 class Laptops(models.Model):
 
