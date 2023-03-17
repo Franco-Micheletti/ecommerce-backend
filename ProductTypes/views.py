@@ -10,7 +10,6 @@ from ProductTypes.models import ProductTypes
 from .serializers import ProductTypesSerializer
 from rest_framework.status import (HTTP_404_NOT_FOUND,HTTP_200_OK,HTTP_400_BAD_REQUEST,HTTP_401_UNAUTHORIZED)
 from django.db.models import Q
-from utilities.product_type_classes import product_types
 from django.db.models import Count,Max
 import json
 from Categories.models import Categories

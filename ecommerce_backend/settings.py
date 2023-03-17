@@ -46,7 +46,8 @@ INSTALLED_APPS = [
     'ProductTypes',
     'Departments',
     'corsheaders',
-    'rest_framework'
+    'rest_framework',
+    'rest_framework_simplejwt'
 ]
 
 MIDDLEWARE = [

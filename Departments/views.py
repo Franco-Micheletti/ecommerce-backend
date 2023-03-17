@@ -5,11 +5,9 @@ from rest_framework.response import Response
 from django.contrib.auth.models import User
 from rest_framework.status import (HTTP_404_NOT_FOUND,HTTP_200_OK,HTTP_400_BAD_REQUEST,HTTP_401_UNAUTHORIZED)
 # from django.db.models import Q
-from utilities.product_type_classes import product_types
 from django.db.models import Count,Max
 from .models import Departments
 from .serializers import DepartmentsSerializer
-
 
 class DepartmentsEndpoint(APIView):
     """

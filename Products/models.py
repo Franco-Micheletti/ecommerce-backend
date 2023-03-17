@@ -6,7 +6,17 @@ import uuid
 class Brand(models.Model):
 
     brand_name = models.CharField(max_length=300,null=True,blank=True)
-    
+
+class Properties(models.Model):
+    property_name = models.CharField(max_length=300,null=True,blank=True)
+
+class Values(models.Model):
+    value_name = models.CharField(max_length=300,null=True,blank=True)
+
+class PropertyValuePairs(models.Model):
+    property = models.ForeignKey(Properties,on_delete=models.CASCADE)
+    value    = models.ForeignKey(Values,on_delete=models.CASCADE)
+
 class ProductsModel(models.Model):
     id = models.UUIDField(
         default=uuid.uuid4,
@@ -21,66 +31,17 @@ class ProductsModel(models.Model):
     price                = models.FloatField(null=True,blank=True)
     retailer             = models.CharField(max_length=300,null=True,blank=True)
     quantity             = models.SmallIntegerField(default=1,null=True,blank=True)
+    variant_id           = models.PositiveBigIntegerField(null=True,blank=True)
+    variant_options      = models.JSONField(null=True,blank=True)
 
-class Properties(models.Model):
-    property_name = models.CharField(max_length=300,null=True,blank=True)
-
-class Values(models.Model):
-    value_name = models.CharField(max_length=300,null=True,blank=True)
-
-class PropertyValuePairs(models.Model):
-    property = models.ForeignKey(Properties,on_delete=models.CASCADE)
-    value    = models.ForeignKey(Values,on_delete=models.CASCADE)
+class ProductVariants(models.Model):
+    product     = models.ForeignKey(ProductsModel,on_delete=models.CASCADE)
+    variant_id  = models.PositiveBigIntegerField(null=True,blank=True)
+    values      = models.JSONField(null=True,blank=True)
 
 class ProductProperties(models.Model):
     product             = models.ForeignKey(ProductsModel,on_delete=models.CASCADE)
     property_value_pair = models.ForeignKey(PropertyValuePairs,on_delete=models.CASCADE)
-
-class Variants(models.Model):
-    product             = models.ForeignKey(ProductsModel,on_delete=models.CASCADE,related_name="product")
-    product_variant     = models.ForeignKey(ProductsModel,on_delete=models.CASCADE,related_name="product_variant")
-    property_value_pair = models.ForeignKey(PropertyValuePairs,on_delete=models.CASCADE)
-    
-
-class CoffeTables(models.Model):
-
-    id = models.UUIDField(
-        default=uuid.uuid4,
-        unique=True,
-        primary_key=True,
-        editable=False
-    )
-    product             = models.ForeignKey(ProductsModel,on_delete=models.CASCADE)
-    style               = models.CharField(max_length=300,null=True,blank=True)
-    shape               = models.CharField(max_length=300,null=True,blank=True)
-    material            = models.CharField(max_length=300,null=True,blank=True)
-    size                = models.CharField(max_length=300,null=True,blank=True)
-    finish              = models.CharField(max_length=300,null=True,blank=True)
-    seating_capacity    = models.CharField(max_length=300,null=True,blank=True)
-    features            = models.CharField(max_length=300,null=True,blank=True)
-    frame_material      = models.CharField(max_length=300,null=True,blank=True)
-    recommended_room    = models.CharField(max_length=300,null=True,blank=True)
-
-
-class Laptops(models.Model):
-
-    id = models.UUIDField(
-        default=uuid.uuid4,
-        unique=True,
-        primary_key=True,
-        editable=False
-    )
-    product              = models.ForeignKey(ProductsModel,on_delete=models.CASCADE)
-    screen_size          = models.CharField(max_length=300,null=True,blank=True)
-    hard_drive_size      = models.CharField(max_length=300,null=True,blank=True)
-    ram                  = models.CharField(max_length=300,null=True,blank=True)
-    operating_system     = models.CharField(max_length=300,null=True,blank=True)
-    processor_brand      = models.CharField(max_length=300,null=True,blank=True)
-    processor_type       = models.CharField(max_length=300,null=True,blank=True)
-    laptop_computer_type = models.CharField(max_length=300,null=True,blank=True)
-    memory_capacity      = models.CharField(max_length=300,null=True,blank=True)
-    wireless_capability  = models.CharField(max_length=300,null=True,blank=True)
-    color                = models.CharField(max_length=300,null=True,blank=True)
 
 class FreshFruit(models.Model):
 
