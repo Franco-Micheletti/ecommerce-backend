@@ -43,16 +43,6 @@ class Signup(APIView):
         - email: Valid Email
         - password: Hashed password for Account Login
 
-        EXAMPLE JSON DATA
-
-            {
-                "first_name":"Franco",
-                "last_name":"Micheletti",
-                "username":"franco",
-                "email":"franmich1720@gmail.com",
-                "password":"1234"
-            }
-
         """
         # Get request data
 
