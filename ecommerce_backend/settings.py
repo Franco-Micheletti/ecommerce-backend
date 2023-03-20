@@ -47,7 +47,9 @@ INSTALLED_APPS = [
     'Departments',
     'corsheaders',
     'rest_framework',
-    'rest_framework_simplejwt'
+    'rest_framework_simplejwt.token_blacklist',
+    'login',
+    'signup'
 ]
 
 MIDDLEWARE = [
@@ -104,6 +106,7 @@ DATABASES = {
     }
 }
 
+AUTH_USER_MODEL = 'login.CustomUser'
 
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
@@ -155,16 +158,22 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL')
 
+# Cors
 CORS_ORIGIN_WHITELIST = [
     'http://localhost:3000',
     'http://127.0.0.1:8000'
 ]
+CORS_ORIGIN_ALLOW_ALL  = True
+CORS_ALLOW_CREDENTIALS = True
+CORS_EXPOSE_HEADERS    = ["Content-Type","csrftoken"]
 
-CORS_ORIGIN_ALLOW_ALL = True
+CSRF_COOKIE_SECURE     = True
+CSRF_COOKIE_HTTP_ONLY  = True
+
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=365),
     'ROTATE_REFRESH_TOKENS': False,
     'BLACKLIST_AFTER_ROTATION': False,
     'UPDATE_LAST_LOGIN': False,
@@ -196,10 +205,10 @@ SIMPLE_JWT = {
     'AUTH_COOKIE_ACCESS': 'jwt_access',  # Cookie name. Enables cookies if value is set.
     'AUTH_COOKIE_REFRESH': 'jwt_refresh',  # Cookie name. Enables cookies if value is set.
     'AUTH_COOKIE_DOMAIN': None,       # A string like "example.com", or None for standard domain cookie.
-    'AUTH_COOKIE_SECURE': False,      # Whether the auth cookies should be secure (https:// only).
+    'AUTH_COOKIE_SECURE': True,       # Whether the auth cookies should be secure (https:// only).
     'AUTH_COOKIE_HTTP_ONLY' : True,   # Http only cookie flag.It's not fetch by javascript.
     'AUTH_COOKIE_PATH': '/',          # The path of the auth cookie.
-    'AUTH_COOKIE_SAMESITE': 'Lax',    # Whether to set the flag restricting cookie leaks on cross-site requests.
+    'AUTH_COOKIE_SAMESITE': "None",   # Whether to set the flag restricting cookie leaks on cross-site requests.
                                       # This can be 'Lax', 'Strict', or None to disable the flag.
 }
 

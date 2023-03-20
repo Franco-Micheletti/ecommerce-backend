@@ -1,12 +1,11 @@
 from rest_framework.response import Response
 from rest_framework.decorators import APIView
 from rest_framework.authtoken.models import Token
-from django.contrib.auth.models import User
+from login.models import CustomUser
 from rest_framework.status import HTTP_404_NOT_FOUND,HTTP_200_OK,HTTP_400_BAD_REQUEST
 from django.core.mail import send_mail
 from django.conf import settings
-
-
+import uuid
 #---------------------------------- VERIFICATION EMAIL -----------------------------------------
 
 def verification_email(name,recipient_email,token,id):
@@ -31,7 +30,7 @@ def verification_email(name,recipient_email,token,id):
 #------------------------------ SIGNUP ( REGISTRATION ) ----------------------------
 
 class Signup(APIView):
-    def post(request):
+    def post(self,request):
         """
         Creates a new user with the data provided:
 
@@ -50,38 +49,36 @@ class Signup(APIView):
 
         # Check if the username doesn't exist in the database
         try:
-            check_username = User.objects.get(username = data["username"] )
+            check_username = CustomUser.objects.get(username = data["username"] )
             if check_username:
                 return Response("THE USERNAME ALREADY EXISTS, PICK ANOTHER ONE",status=HTTP_400_BAD_REQUEST)
-        except User.DoesNotExist:
+        except CustomUser.DoesNotExist:
             # Check if the email doesn't exist in the database
             try:
-                check_email = User.objects.get(email = data["email"] )
+                check_email = CustomUser.objects.get(email = data["email"] )
                 if check_email:
                     return Response("THIS EMAIL IS ALREADY REGISTERED!",status=HTTP_400_BAD_REQUEST)
-            except User.DoesNotExist:
+            except CustomUser.DoesNotExist:
                 
                 # Create user ( Abstract User Creation )
-                user = User.objects.create(
-                                        first_name = data["first_name"],
-                                        last_name  = data["last_name"],
-                                        username   = data["username"],
-                                        email      = data["email"],
-                                        password   = data["password"],
-                                        is_active  = 0 
+                user = CustomUser.objects.create(
+                first_name = data["first_name"],
+                last_name  = data["last_name"],
+                username   = data["username"],
+                email      = data["email"],
+                password   = data["password"],
+                is_active  = 0 
                 )
 
                 user.set_password(data["password"])
                 user.save()
-                token = Token.objects.create(user=user)
-                token_key = token.key
 
                 # Verification email
 
                 name = data["first_name"]
                 recipient_email = data["email"]
 
-                verification_email(name, recipient_email, token_key, str(user.id))
+                # verification_email(name, recipient_email, token_key, str(user.id))
 
                 response_body = {
                     

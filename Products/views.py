@@ -3,6 +3,7 @@ from rest_framework.decorators import permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.contrib.auth.models import User
+from django.conf import settings
 from .models import ProductsModel,Properties,Values,PropertyValuePairs,ProductProperties,Brand,ProductVariants
 from ProductTypes.models import ProductTypes
 from .serializers import (ProductsSerializer,PropertiesSerializer,ValuesSerializer,PropertyValuePairsSerializer,
@@ -10,12 +11,10 @@ ProductPropertiesSerializer,GetProductByPropertySerializer)
 from rest_framework.status import (HTTP_404_NOT_FOUND,HTTP_200_OK,HTTP_400_BAD_REQUEST,HTTP_401_UNAUTHORIZED)
 from django.db.models import Q
 from django.db.models import Count,Max
-import json
 import math
 from Products.functions.product_has_property_value_pair import product_has_property_value_pair
 from Products.functions.count_property_values_results import count_property_values_results
 from Products.functions.filter_products import filter_products
-import re
 
 class SearchWithFilters(APIView):
     """
@@ -127,7 +126,7 @@ class Product(APIView):
     def post(self,request):
 
         request_data = request.data
-
+        
         # Create product basic info
         new_product = ProductsModel.objects.create(
             
@@ -163,7 +162,7 @@ class Product(APIView):
             return Response("Properties are required",HTTP_400_BAD_REQUEST)
          
     def get(self,request,id):
-        
+
         product = ProductsModel.objects.get(id=id)
         if product:
             
