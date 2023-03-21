@@ -1,6 +1,6 @@
 from rest_framework.response import Response
 from rest_framework.decorators import APIView
-from rest_framework.status import HTTP_404_NOT_FOUND,HTTP_200_OK,HTTP_400_BAD_REQUEST
+from rest_framework.status import HTTP_404_NOT_FOUND,HTTP_200_OK,HTTP_400_BAD_REQUEST,HTTP_401_UNAUTHORIZED
 from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt import serializers as jwt_serializers,exceptions as jwt_exceptions,views as jwt_views
@@ -12,7 +12,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import CustomUser
 import rest_framework.exceptions as exceptions
 from rest_framework import exceptions, serializers
-
+from .serializers import UserSerializer
 
 def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
@@ -30,8 +30,11 @@ class LoginView(APIView):
         response = Response()        
         username = data.get('username', None)
         password = data.get('password', None)
-        user = CustomUser.objects.get(username=username)
-        password = user.check_password(password)
+        try:
+            user = CustomUser.objects.get(username=username)
+            password = user.check_password(password)
+        except:
+            return Response({"message" : "Invalid username or password"},status=HTTP_400_BAD_REQUEST)
         if user and password:
             if user.is_active:
                 data = get_tokens_for_user(user)
@@ -61,14 +64,15 @@ class LoginView(APIView):
                                     )
                 csrf.get_token(request)
                 
-                response.data = {"refresh":data['refresh'],
+                response.data = {"message":"Login Successfully",
+                                 "refresh":data['refresh'],
                                  "access":data['access'],
                                  "expires_in":settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME']}
                 return response
             else:
-                return Response({"No active" : "This account is not active!!"},status=HTTP_404_NOT_FOUND)
+                return Response({"message" : "This account is not active, check your email and activate your account"},status=HTTP_401_UNAUTHORIZED)
         else:
-            return Response({"Invalid" : "Invalid username or password!!"},status=HTTP_404_NOT_FOUND)
+            return Response({"message" : "Invalid username or password"},status=HTTP_400_BAD_REQUEST)
 
 class Logout(APIView):
     
@@ -116,7 +120,6 @@ class Logout(APIView):
             
             raise exceptions.ParseError(err)
 
-
 class CookieTokenRefreshSerializer(jwt_serializers.TokenRefreshSerializer):
     refresh = serializers.CharField()
     access = serializers.CharField(read_only=True)
@@ -129,10 +132,9 @@ class CookieTokenRefreshSerializer(jwt_serializers.TokenRefreshSerializer):
 
         try:
             # Attempt to blacklist the given refresh token
-            refresh.blacklist()
+            access_token = refresh.access_token
+            access_token.blacklist()
         except AttributeError:
-            # If blacklist app not installed, `blacklist` method will
-            # not be present
             pass
 
         refresh.set_jti()
@@ -177,4 +179,15 @@ class CookieTokenRefreshView(jwt_views.TokenRefreshView):
             return response
         else:
             return Response("Invalid token",status=HTTP_400_BAD_REQUEST)
+
+class GetUserData(APIView):
+
+    def get(self,request,id):
+
+        user = CustomUser.objects.get(id=id)
+
+        user_data = UserSerializer(user).data
+        
+        return Response(user_data,status=HTTP_200_OK)
+        
         

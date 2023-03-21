@@ -6,6 +6,8 @@ from rest_framework.status import HTTP_404_NOT_FOUND,HTTP_200_OK,HTTP_400_BAD_RE
 from django.core.mail import send_mail
 from django.conf import settings
 import uuid
+import datetime
+import re
 #---------------------------------- VERIFICATION EMAIL -----------------------------------------
 
 def verification_email(name,recipient_email,token,id):
@@ -51,22 +53,41 @@ class Signup(APIView):
         try:
             check_username = CustomUser.objects.get(username = data["username"] )
             if check_username:
-                return Response("THE USERNAME ALREADY EXISTS, PICK ANOTHER ONE",status=HTTP_400_BAD_REQUEST)
+                return Response({"message":"Username not available pick another one"},status=HTTP_400_BAD_REQUEST)
         except CustomUser.DoesNotExist:
             # Check if the email doesn't exist in the database
             try:
                 check_email = CustomUser.objects.get(email = data["email"] )
                 if check_email:
-                    return Response("THIS EMAIL IS ALREADY REGISTERED!",status=HTTP_400_BAD_REQUEST)
+                    return Response({"message":"This email belongs to another account"},status=HTTP_400_BAD_REQUEST)
             except CustomUser.DoesNotExist:
-                
+                # Check if the date is a valid format
+                try:
+                    datetime.date.fromisoformat(data["birthday"])
+                except:
+                    return Response({"message":"Birthday is required for legal issues"},status=HTTP_400_BAD_REQUEST)
+                # Check if the email is valid
+                if len(data["email"]) < 3 or "@" not in data["email"]:
+                    return Response({"message":"Email is required to activate your account after registration"},status=HTTP_400_BAD_REQUEST)
+                # Check strong password
+                password_pattern = "^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{8,}$"
+                is_valid = re.match(password_pattern, data["password"])
+                if is_valid == None:
+                    return Response({"message":"""A strong password should have:,
+                                                  ,At least 8 characters in length.
+                                                  ,At least one uppercase English letter.
+                                                  ,At least one lowercase English letter.
+                                                  ,At least one digit.
+                                                  ,At least one special character."""},status=HTTP_400_BAD_REQUEST)
                 # Create user ( Abstract User Creation )
                 user = CustomUser.objects.create(
-                first_name = data["first_name"],
-                last_name  = data["last_name"],
+                first_name = data["firstname"],
+                last_name  = data["lastname"],
                 username   = data["username"],
                 email      = data["email"],
                 password   = data["password"],
+                birthday   = data["birthday"],
+                phone      = data["phone"],
                 is_active  = 0 
                 )
 
@@ -75,20 +96,19 @@ class Signup(APIView):
 
                 # Verification email
 
-                name = data["first_name"]
+                name = data["firstname"]
                 recipient_email = data["email"]
 
                 # verification_email(name, recipient_email, token_key, str(user.id))
 
                 response_body = {
-                    
-                    "status": "successful",
+            
                     "user_id": user.id,
                     "first_name": user.first_name,
                     "last_name": user.last_name,
                     "username": user.username,
                     "email": user.email,
-                    "message": "Successfully registered your account"
+                    "message": "Register Successfully"
                 }
 
                 return Response(response_body,status=HTTP_200_OK)
