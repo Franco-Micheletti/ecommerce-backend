@@ -3,7 +3,7 @@ from rest_framework.decorators import APIView
 from rest_framework.status import HTTP_404_NOT_FOUND,HTTP_200_OK,HTTP_400_BAD_REQUEST,HTTP_401_UNAUTHORIZED
 from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt import serializers as jwt_serializers,exceptions as jwt_exceptions,views as jwt_views
+from rest_framework_simplejwt import serializers as jwt_serializers,exceptions as jwt_exceptions,views as jwt_views,tokens
 from django.middleware import csrf
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
@@ -36,41 +36,41 @@ class LoginView(APIView):
         except:
             return Response({"message" : "Invalid username or password"},status=HTTP_400_BAD_REQUEST)
         if user and password:
-            if user.is_active:
-                data = get_tokens_for_user(user)
-                    
-                # access
+            
+            data = get_tokens_for_user(user)
                 
-                response.set_cookie(
-                                    key = settings.SIMPLE_JWT['AUTH_COOKIE_ACCESS'], 
-                                    value = data["access"],
-                                    expires = settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'],
-                                    max_age  = settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'],
-                                    secure = settings.SIMPLE_JWT['AUTH_COOKIE_SECURE'],
-                                    httponly = settings.SIMPLE_JWT['AUTH_COOKIE_HTTP_ONLY'],
-                                    samesite = settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE']
-                                    )
-                
-                # refresh 
-                
-                response.set_cookie(
-                                    key = settings.SIMPLE_JWT['AUTH_COOKIE_REFRESH'], 
-                                    value = data["refresh"],
-                                    expires = settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'],
-                                    max_age  = settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'],
-                                    secure = settings.SIMPLE_JWT['AUTH_COOKIE_SECURE'],
-                                    httponly = settings.SIMPLE_JWT['AUTH_COOKIE_HTTP_ONLY'],
-                                    samesite = settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE']
-                                    )
-                csrf.get_token(request)
-                
-                response.data = {"message":"Login Successfully",
-                                 "refresh":data['refresh'],
-                                 "access":data['access'],
-                                 "expires_in":settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME']}
-                return response
-            else:
-                return Response({"message" : "This account is not active, check your email and activate your account"},status=HTTP_401_UNAUTHORIZED)
+            # access
+            
+            response.set_cookie(
+                                key = settings.SIMPLE_JWT['AUTH_COOKIE_ACCESS'], 
+                                value = data["access"],
+                                expires = settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'],
+                                max_age  = settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'],
+                                secure = settings.SIMPLE_JWT['AUTH_COOKIE_SECURE'],
+                                httponly = settings.SIMPLE_JWT['AUTH_COOKIE_HTTP_ONLY'],
+                                samesite = settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE']
+                                )
+            
+            # refresh 
+            
+            response.set_cookie(
+                                key = settings.SIMPLE_JWT['AUTH_COOKIE_REFRESH'], 
+                                value = data["refresh"],
+                                expires = settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'],
+                                max_age  = settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'],
+                                secure = settings.SIMPLE_JWT['AUTH_COOKIE_SECURE'],
+                                httponly = settings.SIMPLE_JWT['AUTH_COOKIE_HTTP_ONLY'],
+                                samesite = settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE']
+                                )
+            csrf.get_token(request)
+            
+            response.data = {"message":"Login Successfully",
+                                "refresh":data['refresh'],
+                                "access":data['access'],
+                                "expires_in":settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME']}
+            return response
+            # else:
+            #     return Response({"message" : "This account is not active, check your email and activate your account"},status=HTTP_401_UNAUTHORIZED)
         else:
             return Response({"message" : "Invalid username or password"},status=HTTP_400_BAD_REQUEST)
 

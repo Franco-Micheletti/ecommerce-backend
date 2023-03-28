@@ -4,17 +4,20 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.contrib.auth.models import User
 from django.conf import settings
-from .models import ProductsModel,Properties,Values,PropertyValuePairs,ProductProperties,Brand,ProductVariants
+from .models import ProductsModel,Properties,Values,PropertyValuePairs,ProductProperties,Brand,ProductVariants,Favorites,UserReviews
 from ProductTypes.models import ProductTypes
 from .serializers import (ProductsSerializer,PropertiesSerializer,ValuesSerializer,PropertyValuePairsSerializer,
-ProductPropertiesSerializer,GetProductByPropertySerializer)
-from rest_framework.status import (HTTP_404_NOT_FOUND,HTTP_200_OK,HTTP_400_BAD_REQUEST,HTTP_401_UNAUTHORIZED)
+ProductPropertiesSerializer,GetProductByPropertySerializer,FavoritesSerializer,UserReviewsSerializer)
+from rest_framework.status import (HTTP_404_NOT_FOUND,HTTP_200_OK,HTTP_400_BAD_REQUEST,HTTP_401_UNAUTHORIZED,HTTP_500_INTERNAL_SERVER_ERROR)
 from django.db.models import Q
 from django.db.models import Count,Max
 import math
 from Products.functions.product_has_property_value_pair import product_has_property_value_pair
 from Products.functions.count_property_values_results import count_property_values_results
 from Products.functions.filter_products import filter_products
+from login.models import CustomUser
+import jwt
+from datetime import date as date
 
 class SearchWithFilters(APIView):
     """
@@ -163,30 +166,71 @@ class Product(APIView):
          
     def get(self,request,id):
 
-        product = ProductsModel.objects.get(id=id)
-        if product:
+        try:
+            product = ProductsModel.objects.get(id=id)
+        except ProductsModel.DoesNotExist:
+            return Response("No product have been found with the ID provided")
+        
+        response_data = {}
+        
+        try:
+            access_token = request.COOKIES.get("jwt_access")
+            if access_token:
+                try:
+                    user_data = jwt.decode(jwt=access_token,
+                                           key=settings.SECRET_KEY,
+                                           verify=True,
+                                           algorithms=["HS256"])
+                    
+                    # Get the review of the logged user
+
+                    logged_user = CustomUser.objects.get(id=user_data["user_id"])
+                    logged_user_review = UserReviews.objects.get(product=product,user=logged_user)
+
+                    if logged_user_review:
+                        logged_user_review_data = UserReviewsSerializer(logged_user_review).data
+                        response_data["logged_user_review"] = logged_user_review_data
+                except Exception as e:
+                    print(e)
+                    
+        except Exception as e:
+            print(e)
+        
+        # Get all product's reviews
+        try:
+            if user_data:
+                reviews = UserReviews.objects.filter(product=product).exclude(user=user_data["user_id"])
+        except:
+            reviews = UserReviews.objects.filter(product=product)
+        
+        if reviews:
+            reviews_data = UserReviewsSerializer(reviews,many=True).data
             
-            product_properties_queryset = ProductProperties.objects.filter(product=product)
-            properties_data = {object.property_value_pair.property.property_name:object.property_value_pair.value.value_name for object in product_properties_queryset }
-            
+            response_data["reviews"] = reviews_data
+
+        # Get product properties
+
+        product_properties_queryset = ProductProperties.objects.filter(product=product)
+        properties_data = {object.property_value_pair.property.property_name:object.property_value_pair.value.value_name for object in product_properties_queryset }
+        
+        response_data["basic"] = ProductsSerializer(product).data
+        response_data["properties"] = properties_data
+
+        # Check if product have variants
+
+        if product.variant_id and product.variant_options:
             variants_objects = ProductVariants.objects.filter(variant_id=product.variant_id)
             variants_data = []
             for object in variants_objects:
                 variants_data.append(
                     {"id"    :(object.product.id),
-                     "values":object.values })
-                
-            response_data = {
-                                "basic":ProductsSerializer(product).data,
-                                "properties":properties_data,
-                                "variant_data":variants_data,
-                                "variant_options":dict(sorted(product.variant_options.items(),reverse=True))
-                            }
+                    "values":object.values })
             
-            return Response(response_data,status=HTTP_200_OK)
-        else:
-            return Response("No product have been found with the ID provided")
+            response_data["variant_data"]    = variants_data
+            response_data["variant_options"] = dict(sorted(product.variant_options.items(),reverse=True))
 
+        return Response(response_data,status=HTTP_200_OK)
+        
     def delete(self,request,id):
 
         product = ProductsModel.objects.get(id=id)
@@ -202,38 +246,38 @@ class Product(APIView):
 
         return Response({},HTTP_200_OK)
     
-# class Variant(APIView):
+class Variant(APIView):
 
-#     def post(self,request):
+    def post(self,request):
 
-#         request_data = request.data
+        request_data = request.data
 
-#         product_id          = request_data["product_id"]
-#         product_variant_id  = request_data["product_variant_id"]
-#         property_name       = request_data["property_name"]
-#         property_value      = request_data["property_value"]
+        product_id          = request_data["product_id"]
+        product_variant_id  = request_data["product_variant_id"]
+        property_name       = request_data["property_name"]
+        property_value      = request_data["property_value"]
 
-#         try:
-#             product              = ProductsModel.objects.get(id=product_id)
-#         except ProductsModel.DoesNotExist:
-#             return Response("Product does not exist",status=HTTP_400_BAD_REQUEST)
-#         try: 
-#             product_variant      = ProductsModel.objects.get(id=product_variant_id)
-#         except ProductsModel.DoesNotExist:
-#             return Response("Product variant does not exist",status=HTTP_400_BAD_REQUEST)
-#         try: 
-#             property_value_pair  = PropertyValuePairs.objects.get(
-#                                         property__property_name = property_name,
-#                                         value__value_name       = property_value    )
-#         except PropertyValuePairs.DoesNotExist:
-#             return Response("Property/value pair does not exist",status=HTTP_400_BAD_REQUEST)
+        try:
+            product              = ProductsModel.objects.get(id=product_id)
+        except ProductsModel.DoesNotExist:
+            return Response("Product does not exist",status=HTTP_400_BAD_REQUEST)
+        try: 
+            product_variant      = ProductsModel.objects.get(id=product_variant_id)
+        except ProductsModel.DoesNotExist:
+            return Response("Product variant does not exist",status=HTTP_400_BAD_REQUEST)
+        try: 
+            property_value_pair  = PropertyValuePairs.objects.get(
+                                        property__property_name = property_name,
+                                        value__value_name       = property_value    )
+        except PropertyValuePairs.DoesNotExist:
+            return Response("Property/value pair does not exist",status=HTTP_400_BAD_REQUEST)
         
-#         Variants.objects.create(
-#             product             = product,
-#             product_variant     = product_variant,
-#             property_value_pair = property_value_pair)
+        Variants.objects.create(
+            product             = product,
+            product_variant     = product_variant,
+            property_value_pair = property_value_pair)
 
-#         return Response("Variant created successfully")
+        return Response("Variant created successfully")
 
 class ProductsHome(APIView):
 
@@ -274,4 +318,149 @@ class GetProductsByProperty(APIView):
         else:
             return Response("Property pair not found",status=HTTP_400_BAD_REQUEST)
         
+class GetUserFavoriteProducts(APIView):
+
+    def get(self,request,id):
         
+        try:
+            user = CustomUser.objects.get(id=id)
+        except CustomUser.DoesNotExist:
+            return Response({"message":"User does not exist"},status=HTTP_400_BAD_REQUEST)
+        
+        try:
+            favorites = Favorites.objects.filter(user=user)
+        except Favorites.DoesNotExist:
+            return Response({"message":"User doesn't have any favorites yet"},status=HTTP_400_BAD_REQUEST)
+
+
+        favorite_products_list = [ favorite_object.product for favorite_object in favorites ]
+        favorite_products_data = ProductsSerializer(favorite_products_list,many=True).data
+        favorite_icon_change_list = [ product.id for product in favorite_products_list ]
+
+
+        response_data = {"favorite_products_data":favorite_products_data,
+                         "icon_change_list":favorite_icon_change_list}
+
+        return Response(response_data,status=HTTP_200_OK)
+
+class FavoriteProduct(APIView):
+
+    # Add favorite product
+    def post(self,request,product_id,user_id):
+        
+        try:
+            user = CustomUser.objects.get(id=user_id)
+        except CustomUser.DoesNotExist:
+            return Response({"message":"User does not exist"},status=HTTP_400_BAD_REQUEST)
+        
+        try:
+            product = ProductsModel.objects.get(id=product_id)
+        except ProductsModel.DoesNotExist:
+            return Response({"message":"Product does not exist"},status=HTTP_400_BAD_REQUEST)
+        
+        try:
+            Favorites.objects.create(
+
+                user = user,
+                product = product
+            )
+        except:
+            return Response({"message":"Error creating favorite"},status=HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        # Response with updated list
+
+        try:
+            favorites = Favorites.objects.filter(user=user)
+        except Favorites.DoesNotExist:
+            return Response({"message":"User doesn't have any favorites yet"},status=HTTP_400_BAD_REQUEST)
+    
+        favorite_products_list = [ favorite_object.product for favorite_object in favorites ]
+        favorite_products_data = ProductsSerializer(favorite_products_list,many=True).data
+        favorite_icon_change_list = [ product.id for product in favorite_products_list ]
+
+
+        response_data = {"message":"Product added to favorites successfully",
+                         "favorite_products_data":favorite_products_data,
+                         "icon_change_list":favorite_icon_change_list}
+        
+        return Response(response_data,status=HTTP_200_OK) 
+        
+    def delete(self,request,product_id,user_id):
+        
+        
+        try:
+            user = CustomUser.objects.get(id=user_id)
+        except CustomUser.DoesNotExist:
+            return Response({"message":"User does not exist"},status=HTTP_400_BAD_REQUEST)
+
+        try:
+            product = ProductsModel.objects.get(id=product_id)
+        except ProductsModel.DoesNotExist:
+            return Response({"message":"Product does not exist"},status=HTTP_400_BAD_REQUEST)
+        
+        try:
+            favorite_product = Favorites.objects.get(user=user,product=product)
+        except Favorites.DoesNotExist:
+            return Response({"message":"User doesn't have any favorites yet"},status=HTTP_400_BAD_REQUEST)
+
+        try:
+            favorite_product.delete()
+        except:
+            return Response({"message":"Error creating favorite"},status=HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        # Response with updated list
+
+        try:
+            favorites = Favorites.objects.filter(user=user)
+        except Favorites.DoesNotExist:
+            return Response({"message":"User doesn't have any favorites yet"},status=HTTP_400_BAD_REQUEST)
+    
+        favorite_products_list = [ favorite_object.product for favorite_object in favorites ]
+        favorite_products_data = ProductsSerializer(favorite_products_list,many=True).data
+        favorite_icon_change_list = [ product.id for product in favorite_products_list ]
+
+
+        response_data = {"message":"Product removed from favorites successfully",
+                        "favorite_products_data":favorite_products_data,
+                        "icon_change_list":favorite_icon_change_list}
+        
+        return Response(response_data,status=HTTP_200_OK) 
+        
+class UserReviewsEndpoint(APIView):
+
+    def post(self,request,product_id):
+
+        request_data = request.data
+
+        access_token = request.COOKIES.get("jwt_access")
+
+        if access_token:
+            user_data = jwt.decode(jwt=access_token,
+                                   key=settings.SECRET_KEY,
+                                   verify=True,
+                                   algorithms=["HS256"]) 
+            
+            product   = ProductsModel.objects.get(id = product_id)
+            user      = CustomUser.objects.get(id = user_data["user_id"])
+            
+            if user:
+                if product:
+
+                    new_review = UserReviews.objects.create(
+
+                        text    = request_data["text"],
+                        score   = request_data["score"],
+                        product = product,
+                        user    = user,
+                        date    = date.today()
+                    )
+
+                    new_review_data = UserReviewsSerializer(new_review).data
+
+                    return Response(new_review_data,HTTP_200_OK)
+                else:
+                    return Response("Product removed or id not valid",HTTP_400_BAD_REQUEST)
+            else:
+                return Response("User is not valid",HTTP_401_UNAUTHORIZED)
+        else:
+            return Response("Not authorization provided",HTTP_401_UNAUTHORIZED)

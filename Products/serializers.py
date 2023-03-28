@@ -1,7 +1,15 @@
 from rest_framework import serializers
 from .models import(ProductsModel,
                     Brand,
-                    EnergyDrinks,Properties,Values,PropertyValuePairs,ProductProperties)
+                    EnergyDrinks,
+                    Properties,
+                    Values,
+                    PropertyValuePairs,
+                    ProductProperties,
+                    Favorites,
+                    UserReviews)
+
+from login.serializers import UserSerializer
 
 class BrandSerializer(serializers.ModelSerializer):
 
@@ -74,3 +82,20 @@ class EnergyDrinksSerializer(serializers.ModelSerializer):
                     'special_diet_needs'                
                  )
 
+class FavoritesSerializer(serializers.ModelSerializer):
+     
+    product = ProductsSerializer(read_only=True)
+
+    class Meta:
+        model   = Favorites
+        fields  = ( 
+                    'product',              
+                  )
+        
+class UserReviewsSerializer(serializers.ModelSerializer):
+     
+    user = UserSerializer(read_only = True)
+    
+    class Meta:
+        model   = UserReviews
+        fields  = '__all__'

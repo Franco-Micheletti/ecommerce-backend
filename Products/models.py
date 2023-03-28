@@ -1,6 +1,7 @@
 from django.db import models
 from ProductTypes.models import ProductTypes
 import uuid
+from login.models import CustomUser
 # Tables
 
 class Brand(models.Model):
@@ -85,13 +86,26 @@ class EnergyDrinks(models.Model):
     flavor              = models.CharField(max_length=300,null=True,blank=True)
     special_diet_needs  = models.CharField(max_length=300,null=True,blank=True)
 
+class Favorites(models.Model):
 
-
-
-
+    user = models.ForeignKey(CustomUser,on_delete=models.CASCADE)
+    product = models.ForeignKey(ProductsModel,on_delete=models.CASCADE)
     
+class UserReviews(models.Model):
 
+    id = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        primary_key=True,
+        editable=False
+    )
 
+    product             = models.ForeignKey(ProductsModel,on_delete=models.CASCADE)
+    user                = models.ForeignKey(CustomUser,on_delete=models.CASCADE)
+    text                = models.TextField(max_length=300,null=True,blank=True)
+    score               = models.IntegerField(null=True,blank=True)
+    date                = models.DateField(null=True,blank=True)
+    
 
 
 
