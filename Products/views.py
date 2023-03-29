@@ -27,18 +27,26 @@ class SearchWithFilters(APIView):
 
     Returns products and filters filtering by product name and user applied filters
     """
-    def get(self,request,filters,product_name,page=1):
-
+    def get(self,request,filters,product_name,page=1,order_by_string=None):
+        
         if product_name and filters and page:
             
-            products = ProductsModel.objects.filter(product_name__icontains=str(product_name))[0:1000]
+            products = ProductsModel.objects.filter(product_name__icontains=str(product_name))
+            
+            # Check if any sort by was selected
+            if order_by_string:
+                print("STRING",order_by_string)
+                order_by_list = order_by_string.split("+")
+                print("LIST",order_by_list)
+                products = products.order_by(*order_by_list)[0:1000]
+            
             if products:
                 # Create dictionary with the sum of each property value.
                 response_data = count_property_values_results(product_name)
                 # Apply filters selected by the user before serializing
                 products_list = filter_products(filters,products)
                 # Pagination
-                total_products    = products[0:1000]
+                total_products    = products
                 filtered_products = products_list[(int(page)-1)*30:int(page)*30]
                 # Serializing products
                 products_data = ProductsSerializer(filtered_products,many=True).data
@@ -66,8 +74,8 @@ class SearchWithOutFilters(APIView):
 
     Returns products and filters filtering by product name
     """
-    def get(self,request,product_name,page):
-
+    def get(self,request,product_name,page,order_by_string=None):
+        
         if product_name:
                 
                 response_data = {
@@ -78,7 +86,15 @@ class SearchWithOutFilters(APIView):
                     }
                 }
 
-                products = ProductsModel.objects.filter(product_name__icontains=str(product_name))[0:1000]
+                # Search by product name
+                products = ProductsModel.objects.filter(product_name__icontains=str(product_name))
+                # Check if any sort by was selected
+                if order_by_string:
+                    print("STRING",order_by_string)
+                    order_by_list = order_by_string.split(",")
+                    print("LIST",order_by_list)
+                    products = products.order_by(*order_by_list)[0:1000]
+                
                 product_properties = ProductProperties.objects.filter(product__product_name__icontains=str(product_name))[0:1000]
                 if product_properties:
                     for object in product_properties:
@@ -190,6 +206,7 @@ class Product(APIView):
                     if logged_user_review:
                         logged_user_review_data = UserReviewsSerializer(logged_user_review).data
                         response_data["logged_user_review"] = logged_user_review_data
+                        
                 except Exception as e:
                     print(e)
                     

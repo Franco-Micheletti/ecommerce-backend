@@ -2,11 +2,15 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    
-
-    # Search With Filters
+    # Search With Filters and sort
+    path("products/product_name=<product_name>&filters=<filters>&page=<page>&order_by=<order_by_string>",views.SearchWithFilters.as_view()),
+    # Search With Filters only
+    path("products/product_name=<product_name>&filters=<filters>&page=<page>",views.SearchWithFilters.as_view()),
+    # Search With Sort only 
     path("products/product_name=<product_name>&filters=<filters>&page=<page>",views.SearchWithFilters.as_view()),
     # Search Without Filters
+    path("products/product_name=<product_name>&page=<page>&order_by=<order_by_string>",views.SearchWithOutFilters.as_view()),
+    # Search by name only
     path("products/product_name=<product_name>&page=<page>",views.SearchWithOutFilters.as_view()),
     # Products
     path("products/home",views.ProductsHome.as_view()),

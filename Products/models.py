@@ -34,6 +34,10 @@ class ProductsModel(models.Model):
     quantity             = models.SmallIntegerField(default=1,null=True,blank=True)
     variant_id           = models.PositiveBigIntegerField(null=True,blank=True)
     variant_options      = models.JSONField(null=True,blank=True)
+    date                 = models.DateField(auto_now_add=True,null=True,blank=True)
+    pack                 = models.IntegerField(null=True,blank=True)
+    availability         = models.BooleanField(null=True,blank=True)
+    shipping_days        = models.IntegerField(null=True,blank=True)
 
 class ProductVariants(models.Model):
     product     = models.ForeignKey(ProductsModel,on_delete=models.CASCADE)
