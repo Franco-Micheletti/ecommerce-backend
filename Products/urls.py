@@ -22,11 +22,13 @@ urlpatterns = [
     path("product/property=<property>&value=<value>",views.GetProductsByProperty.as_view()),
     # Get User's favorite products
     path("products/favorites/user_id=<id>",views.GetUserFavoriteProducts.as_view()),
-    # Favorite Product ( Add - Delete )
+    # Favorite Product ( Create - Delete )
     path("product/favorites/user_id=<user_id>&product_id=<product_id>",views.FavoriteProduct.as_view()),
     
     # REVIEWS 
     
     # Create user review
-    path("product/review/product_id=<product_id>",views.UserReviewsEndpoint.as_view())
+    path("product/review/create/product_id=<product_id>",views.UserReviewsEndpoint.as_view()),
+    # Specific review ( Delete - Update - Get )
+    path("product/review/review_id=<review_id>",views.UserReviewsEndpoint.as_view())
 ]

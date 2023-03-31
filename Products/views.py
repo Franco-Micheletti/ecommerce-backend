@@ -445,6 +445,52 @@ class FavoriteProduct(APIView):
         
 class UserReviewsEndpoint(APIView):
 
+    def put(self,request,review_id):
+
+        request_data = request.data
+
+        access_token = request.COOKIES.get("jwt_access")
+
+        if access_token:
+            user_data = jwt.decode(jwt=access_token,
+                                   key=settings.SECRET_KEY,
+                                   verify=True,
+                                   algorithms=["HS256"]) 
+            
+            user      = CustomUser.objects.get(id = user_data["user_id"])
+            review    =  UserReviews.objects.get(id=review_id)
+            
+            if user:
+                if review:
+                    # Check if user is the same user that created the review
+                    if user == review.user:
+                        
+                        # Update text
+                        if len(request_data["text"]) >= 20:
+                            review.text = request_data["text"]
+                        else:
+                            return Response({"error":"The review should be at least 20 characters long"},HTTP_400_BAD_REQUEST)
+                        
+                        # Update score
+                        if type(request_data["score"]) != str:
+                            review.score = request_data["score"]
+                        else:
+                            return Response({"error":"Score is required"},HTTP_400_BAD_REQUEST)    
+                        
+                        review.date = date.today()
+                        
+                        review.save()
+                        
+                    new_review_data = UserReviewsSerializer(review).data
+
+                    return Response(new_review_data,HTTP_200_OK)
+                else:
+                    return Response("Review not found",HTTP_400_BAD_REQUEST)
+            else:
+                return Response("User is not valid",HTTP_401_UNAUTHORIZED)
+        else:
+            return Response("Not authorization provided",HTTP_401_UNAUTHORIZED)
+
     def post(self,request,product_id):
 
         request_data = request.data
@@ -477,6 +523,31 @@ class UserReviewsEndpoint(APIView):
                     return Response(new_review_data,HTTP_200_OK)
                 else:
                     return Response("Product removed or id not valid",HTTP_400_BAD_REQUEST)
+            else:
+                return Response("User is not valid",HTTP_401_UNAUTHORIZED)
+        else:
+            return Response("Not authorization provided",HTTP_401_UNAUTHORIZED)
+
+    def delete(self,request,review_id):
+
+        access_token = request.COOKIES.get("jwt_access")
+
+        if access_token:
+            user_data = jwt.decode(jwt=access_token,
+                                   key=settings.SECRET_KEY,
+                                   verify=True,
+                                   algorithms=["HS256"]) 
+            
+            user      = CustomUser.objects.get(id = user_data["user_id"])
+            review    = UserReviews.objects.get(id=review_id)
+            
+            if user:
+                if review:
+                    review.delete()
+
+                    return Response("Review deleted successfully",HTTP_200_OK)
+                else:
+                    return Response("Review not found",HTTP_400_BAD_REQUEST)
             else:
                 return Response("User is not valid",HTTP_401_UNAUTHORIZED)
         else:
