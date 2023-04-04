@@ -10,7 +10,7 @@ from .serializers import (ProductsSerializer,PropertiesSerializer,ValuesSerializ
 ProductPropertiesSerializer,GetProductByPropertySerializer,FavoritesSerializer,UserReviewsSerializer)
 from rest_framework.status import (HTTP_404_NOT_FOUND,HTTP_200_OK,HTTP_400_BAD_REQUEST,HTTP_401_UNAUTHORIZED,HTTP_500_INTERNAL_SERVER_ERROR)
 from django.db.models import Q
-from django.db.models import Count,Max
+from django.db.models import Count,Max,Avg
 import math
 from Products.functions.product_has_property_value_pair import product_has_property_value_pair
 from Products.functions.count_property_values_results import count_property_values_results
@@ -151,6 +151,7 @@ class Product(APIView):
             
             product_name         = request_data["product_name"],
             product_image_tag    = request_data["product_image_tag"],
+            total_images         = request_data["total_images"],
             product_type         = ProductTypes.objects.get(id=request_data["product_type_id"]),
             brand                = Brand.objects.get(id=request_data["brand_id"]),
             price                = request_data["price"],
@@ -222,8 +223,12 @@ class Product(APIView):
         
         if reviews:
             reviews_data = UserReviewsSerializer(reviews,many=True).data
-            
             response_data["reviews"] = reviews_data
+
+            # Get average score of the product
+            
+            average_score = reviews.aggregate(Avg('score'))
+            response_data["avg_score"] = average_score["score__avg"]
 
         # Get product properties
 
@@ -232,7 +237,7 @@ class Product(APIView):
         
         response_data["basic"] = ProductsSerializer(product).data
         response_data["properties"] = properties_data
-
+    
         # Check if product have variants
 
         if product.variant_id and product.variant_options:
@@ -299,7 +304,7 @@ class Variant(APIView):
 class ProductsHome(APIView):
 
     def get(self,request):
-
+        
         products_home = ProductsModel.objects.all()[:12]
         products_home_data = ProductsSerializer(products_home,many=True).data
         
@@ -472,7 +477,7 @@ class UserReviewsEndpoint(APIView):
                             return Response({"error":"The review should be at least 20 characters long"},HTTP_400_BAD_REQUEST)
                         
                         # Update score
-                        if type(request_data["score"]) != str:
+                        if request_data["score"] != "":
                             review.score = request_data["score"]
                         else:
                             return Response({"error":"Score is required"},HTTP_400_BAD_REQUEST)    
@@ -552,3 +557,8 @@ class UserReviewsEndpoint(APIView):
                 return Response("User is not valid",HTTP_401_UNAUTHORIZED)
         else:
             return Response("Not authorization provided",HTTP_401_UNAUTHORIZED)
+        
+
+
+
+

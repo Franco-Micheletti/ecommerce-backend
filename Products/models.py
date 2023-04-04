@@ -27,6 +27,8 @@ class ProductsModel(models.Model):
     )
     product_name         = models.CharField(max_length=300,default="")
     product_image_tag    = models.CharField(max_length=300,null=True,blank=True)
+    generic_image_tag    = models.CharField(max_length=300,null=True,blank=True)
+    total_images         = models.IntegerField(null=True,blank=True)
     product_type         = models.ForeignKey(ProductTypes,on_delete=models.CASCADE)
     brand                = models.ForeignKey(Brand,on_delete=models.CASCADE)
     price                = models.FloatField(null=True,blank=True)
