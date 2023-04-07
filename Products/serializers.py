@@ -9,7 +9,7 @@ from .models import(ProductsModel,
                     Favorites,
                     UserReviews)
 
-from login.serializers import UserSerializer
+from login.serializers import UserSerializer,UserSerializerPublicInfo
 
 class BrandSerializer(serializers.ModelSerializer):
 
@@ -98,8 +98,14 @@ class FavoritesSerializer(serializers.ModelSerializer):
         
 class UserReviewsSerializer(serializers.ModelSerializer):
      
-    user = UserSerializer(read_only = True)
+    user = UserSerializerPublicInfo(read_only = True)
+    product = ProductsSerializer(ProductsModel,read_only=True)
     
     class Meta:
         model   = UserReviews
-        fields  = '__all__'
+        fields  = ('id',
+                   'date',
+                   "score",
+                   "text",
+                   "product",
+                   "user")

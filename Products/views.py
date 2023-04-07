@@ -558,6 +558,29 @@ class UserReviewsEndpoint(APIView):
         else:
             return Response("Not authorization provided",HTTP_401_UNAUTHORIZED)
         
+class GetAllReviewsOfUser(APIView):
+
+    def get(self,request):
+
+        access_token = request.COOKIES.get("jwt_access")
+
+        if access_token:
+            
+            user_data = jwt.decode(jwt=access_token,
+                                   key=settings.SECRET_KEY,
+                                   verify=True,
+                                   algorithms=["HS256"]) 
+            
+            user      = CustomUser.objects.get(id = user_data["user_id"])
+        
+            if user:
+                reviews_of_user = UserReviews.objects.filter(user=user)
+                if reviews_of_user:
+                    reviews_of_user_data = UserReviewsSerializer(reviews_of_user,many=True).data
+                    return Response(reviews_of_user_data,HTTP_200_OK)
+                else:
+                    return Response({},HTTP_200_OK)
+    
 
 
 

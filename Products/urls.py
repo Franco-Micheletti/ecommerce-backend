@@ -30,5 +30,8 @@ urlpatterns = [
     # Create user review
     path("product/review/create/product_id=<product_id>",views.UserReviewsEndpoint.as_view()),
     # Specific review ( Delete - Update - Get )
-    path("product/review/review_id=<review_id>",views.UserReviewsEndpoint.as_view())
+    path("product/review/review_id=<review_id>",views.UserReviewsEndpoint.as_view()),
+    
+    # All reviews of logged user
+    path("reviews/",views.GetAllReviewsOfUser.as_view())
 ]

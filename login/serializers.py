@@ -6,3 +6,9 @@ class UserSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = '__all__'
     
+class UserSerializerPublicInfo(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = ('id',
+                  "profile_image_tag",
+                  "username")

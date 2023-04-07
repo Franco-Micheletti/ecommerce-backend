@@ -98,7 +98,7 @@ class Favorites(models.Model):
     product = models.ForeignKey(ProductsModel,on_delete=models.CASCADE)
     
 class UserReviews(models.Model):
-
+    
     id = models.UUIDField(
         default=uuid.uuid4,
         unique=True,
