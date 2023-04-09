@@ -160,7 +160,18 @@ class Product(APIView):
 
         # Check if product have variants
 
+        if request_data["variant_options"] and request_data["variant_id"]:
+            
+            new_product.variant_id = request_data["variant_id"]
+            new_product.variant_options = request_data["variant_options"]
 
+            new_product.save()
+
+            ProductVariants.objects.create(
+                product    = new_product,
+                variant_id = request_data["variant_id"],
+                values     = request_data["variant_values"]
+            )
             
         # Create properties
         properties = request_data["properties"]
@@ -268,39 +279,6 @@ class Product(APIView):
 
         return Response({},HTTP_200_OK)
     
-class Variant(APIView):
-
-    def post(self,request):
-
-        request_data = request.data
-
-        product_id          = request_data["product_id"]
-        product_variant_id  = request_data["product_variant_id"]
-        property_name       = request_data["property_name"]
-        property_value      = request_data["property_value"]
-
-        try:
-            product              = ProductsModel.objects.get(id=product_id)
-        except ProductsModel.DoesNotExist:
-            return Response("Product does not exist",status=HTTP_400_BAD_REQUEST)
-        try: 
-            product_variant      = ProductsModel.objects.get(id=product_variant_id)
-        except ProductsModel.DoesNotExist:
-            return Response("Product variant does not exist",status=HTTP_400_BAD_REQUEST)
-        try: 
-            property_value_pair  = PropertyValuePairs.objects.get(
-                                        property__property_name = property_name,
-                                        value__value_name       = property_value    )
-        except PropertyValuePairs.DoesNotExist:
-            return Response("Property/value pair does not exist",status=HTTP_400_BAD_REQUEST)
-        
-        Variants.objects.create(
-            product             = product,
-            product_variant     = product_variant,
-            property_value_pair = property_value_pair)
-
-        return Response("Variant created successfully")
-
 class ProductsHome(APIView):
 
     def get(self,request):
@@ -561,26 +539,32 @@ class UserReviewsEndpoint(APIView):
 class GetAllReviewsOfUser(APIView):
 
     def get(self,request):
-
-        access_token = request.COOKIES.get("jwt_access")
-
-        if access_token:
-            
-            user_data = jwt.decode(jwt=access_token,
-                                   key=settings.SECRET_KEY,
-                                   verify=True,
-                                   algorithms=["HS256"]) 
-            
-            user      = CustomUser.objects.get(id = user_data["user_id"])
         
-            if user:
-                reviews_of_user = UserReviews.objects.filter(user=user)
-                if reviews_of_user:
-                    reviews_of_user_data = UserReviewsSerializer(reviews_of_user,many=True).data
-                    return Response(reviews_of_user_data,HTTP_200_OK)
+        if "jwt_access" in request.COOKIES:
+            access_token = request.COOKIES.get("jwt_access")
+
+            if access_token:
+                
+                user_data = jwt.decode(jwt=access_token,
+                                    key=settings.SECRET_KEY,
+                                    verify=True,
+                                    algorithms=["HS256"]) 
+                
+                user      = CustomUser.objects.get(id = user_data["user_id"])
+            
+                if user:
+                    reviews_of_user = UserReviews.objects.filter(user=user)
+                    if reviews_of_user:
+                        reviews_of_user_data = UserReviewsSerializer(reviews_of_user,many=True).data
+                        return Response(reviews_of_user_data,HTTP_200_OK)
+                    else:
+                        return Response({},HTTP_200_OK)
                 else:
-                    return Response({},HTTP_200_OK)
-    
+                    return Response("Not authorized",HTTP_401_UNAUTHORIZED)
+            else:
+                return Response("No token provided or invalid",HTTP_404_NOT_FOUND)
+        else:
+            return Response("Credentials were not provided")
 
 
 
