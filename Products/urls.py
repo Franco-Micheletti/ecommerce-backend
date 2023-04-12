@@ -12,8 +12,10 @@ urlpatterns = [
     path("products/product_name=<product_name>&page=<page>&order_by=<order_by_string>",views.SearchWithOutFilters.as_view()),
     # Search by name only
     path("products/product_name=<product_name>&page=<page>",views.SearchWithOutFilters.as_view()),
-    # Products
+    # Products of home page
     path("products/home",views.ProductsHome.as_view()),
+    # Products By Product Type
+    path("products/product_type_id=<product_type_id>",views.GetProductsByProductType.as_view()),
     # Create Product
     path("product/create",views.Product.as_view()),
     # Get Product

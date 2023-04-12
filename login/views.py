@@ -184,8 +184,11 @@ class GetUserData(APIView):
 
     def get(self,request,id):
 
-        user = CustomUser.objects.get(id=id)
-
+        try:
+            user = CustomUser.objects.get(id=id)
+        except CustomUser.DoesNotExist:
+            return Response("Invalid Token",HTTP_401_UNAUTHORIZED)
+        
         user_data = UserSerializer(user).data
         
         return Response(user_data,status=HTTP_200_OK)

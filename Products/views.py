@@ -35,11 +35,14 @@ class SearchWithFilters(APIView):
             
             # Check if any sort by was selected
             if order_by_string:
+                # Replace speed by shipping days
+                if "speed" in order_by_string:
+                    order_by_string.replace("speed","shipping_days")
                 print("STRING",order_by_string)
                 order_by_list = order_by_string.split("+")
                 print("LIST",order_by_list)
                 products = products.order_by(*order_by_list)[0:1000]
-            
+
             if products:
                 # Create dictionary with the sum of each property value.
                 response_data = count_property_values_results(product_name)
@@ -90,6 +93,9 @@ class SearchWithOutFilters(APIView):
                 products = ProductsModel.objects.filter(product_name__icontains=str(product_name))
                 # Check if any sort by was selected
                 if order_by_string:
+                    # Replace speed by shipping days
+                    if "speed" in order_by_string:
+                        order_by_string = order_by_string.replace("speed","shipping_days")
                     print("STRING",order_by_string)
                     order_by_list = order_by_string.split(",")
                     print("LIST",order_by_list)
@@ -151,11 +157,15 @@ class Product(APIView):
             
             product_name         = request_data["product_name"],
             product_image_tag    = request_data["product_image_tag"],
+            generic_image_tag    = request_data["generic_image_tag"],
             total_images         = request_data["total_images"],
             product_type         = ProductTypes.objects.get(id=request_data["product_type_id"]),
             brand                = Brand.objects.get(id=request_data["brand_id"]),
             price                = request_data["price"],
-            retailer             = request_data["retailer"]
+            retailer             = request_data["retailer"],
+            availability         = request_data["availability"],
+            shipping_days        = request_data["shipping_days"],
+            pack                 = request_data["pack"]
         )
 
         # Check if product have variants
@@ -194,6 +204,8 @@ class Product(APIView):
          
     def get(self,request,id):
 
+        has_reviews = False
+
         try:
             product = ProductsModel.objects.get(id=id)
         except ProductsModel.DoesNotExist:
@@ -201,6 +213,7 @@ class Product(APIView):
         
         response_data = {}
         
+
         try:
             access_token = request.COOKIES.get("jwt_access")
             if access_token:
@@ -228,18 +241,22 @@ class Product(APIView):
         # Get all product's reviews
         try:
             if user_data:
-                reviews = UserReviews.objects.filter(product=product).exclude(user=user_data["user_id"])
+                all_reviews          = UserReviews.objects.filter(product=product)
+                reviews_without_user = all_reviews.exclude(user=user_data["user_id"])
+                
         except:
-            reviews = UserReviews.objects.filter(product=product)
-        
-        if reviews:
-            reviews_data = UserReviewsSerializer(reviews,many=True).data
+            all_reviews = UserReviews.objects.filter(product=product)
+            
+        if all_reviews:
+            reviews_data = UserReviewsSerializer(reviews_without_user,many=True).data
             response_data["reviews"] = reviews_data
 
             # Get average score of the product
-            
-            average_score = reviews.aggregate(Avg('score'))
-            response_data["avg_score"] = average_score["score__avg"]
+            average_score = all_reviews.aggregate(Avg('score'))
+
+            response_data["avg_score"] = {}
+            response_data["avg_score"]["avg"]           = average_score["score__avg"]
+            response_data["avg_score"]["total_reviews"] = len(all_reviews)
 
         # Get product properties
 
@@ -282,14 +299,52 @@ class Product(APIView):
 class ProductsHome(APIView):
 
     def get(self,request):
+
+        def calculate_avg_score(products_data): 
+            
+            for product in products_data:
+
+                product_reviews = UserReviews.objects.filter(product_id=product["id"])
+                # Get average score of the product
+                average_score = product_reviews.aggregate(Avg('score'))
+                product["avg_score"] =  {
+                                            "avg":average_score,
+                                            "total_reviews": len(product_reviews)
+                                        }
+            return products_data
+            
+        cookies       = ProductsModel.objects.filter(product_type_id=4)
+        cookies_data  = ProductsSerializer(cookies,many=True).data
+        cookies_data  = calculate_avg_score(cookies_data)
         
-        products_home = ProductsModel.objects.all()[:12]
-        products_home_data = ProductsSerializer(products_home,many=True).data
+        laptops       = ProductsModel.objects.filter(product_type_id=2)
+        laptops_data  = ProductsSerializer(laptops,many=True).data
+        laptops_data  = calculate_avg_score(laptops_data)
+
+        energy_drinks       = ProductsModel.objects.filter(product_type_id=5)
+        energy_drinks_data  = ProductsSerializer(energy_drinks,many=True).data
+        energy_drinks_data  = calculate_avg_score(energy_drinks_data)
         
-        if products_home:
-            return Response(products_home_data,status=HTTP_200_OK)
+        response_data = {
+                            "cookies":      cookies_data,
+                            "laptops":      laptops_data,
+                            "energy_drinks":energy_drinks_data
+                         }
+        
+        return Response(response_data,status=HTTP_200_OK)
+        
+class GetProductsByProductType(APIView):
+
+    def get(self,request,product_type_id):
+        
+        products      = ProductsModel.objects.get(product_type_id=product_type_id)
+        products_data = ProductsSerializer(products,many=True).data
+        
+        if products:
+            return Response(products_data,status=HTTP_200_OK)
         else:
             return Response({},HTTP_200_OK)
+
     
 class GetProductsByProperty(APIView):
 
@@ -549,18 +604,18 @@ class GetAllReviewsOfUser(APIView):
                                     key=settings.SECRET_KEY,
                                     verify=True,
                                     algorithms=["HS256"]) 
-                
-                user      = CustomUser.objects.get(id = user_data["user_id"])
-            
-                if user:
-                    reviews_of_user = UserReviews.objects.filter(user=user)
-                    if reviews_of_user:
-                        reviews_of_user_data = UserReviewsSerializer(reviews_of_user,many=True).data
-                        return Response(reviews_of_user_data,HTTP_200_OK)
-                    else:
-                        return Response({},HTTP_200_OK)
-                else:
+                try:
+                    user = CustomUser.objects.get(id = user_data["user_id"])
+                except CustomUser.DoesNotExist:
                     return Response("Not authorized",HTTP_401_UNAUTHORIZED)
+                
+                reviews_of_user = UserReviews.objects.filter(user=user)
+                if reviews_of_user:
+                    reviews_of_user_data = UserReviewsSerializer(reviews_of_user,many=True).data
+                    return Response(reviews_of_user_data,HTTP_200_OK)
+                else:
+                    return Response({},HTTP_200_OK)
+                
             else:
                 return Response("No token provided or invalid",HTTP_404_NOT_FOUND)
         else:
