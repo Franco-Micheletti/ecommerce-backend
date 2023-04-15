@@ -109,3 +109,11 @@ class UserReviewsSerializer(serializers.ModelSerializer):
                    "text",
                    "product",
                    "user")
+
+class UserReviewsProductOnlySerializer(serializers.ModelSerializer):
+
+    product = ProductsSerializer(ProductsModel,read_only=True)
+
+    class Meta:
+        model   = UserReviews
+        fields  = ("product",)

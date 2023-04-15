@@ -7,7 +7,7 @@ from django.conf import settings
 from .models import ProductsModel,Properties,Values,PropertyValuePairs,ProductProperties,Brand,ProductVariants,Favorites,UserReviews
 from ProductTypes.models import ProductTypes
 from .serializers import (ProductsSerializer,PropertiesSerializer,ValuesSerializer,PropertyValuePairsSerializer,
-ProductPropertiesSerializer,GetProductByPropertySerializer,FavoritesSerializer,UserReviewsSerializer)
+ProductPropertiesSerializer,GetProductByPropertySerializer,FavoritesSerializer,UserReviewsSerializer,UserReviewsProductOnlySerializer)
 from rest_framework.status import (HTTP_404_NOT_FOUND,HTTP_200_OK,HTTP_400_BAD_REQUEST,HTTP_401_UNAUTHORIZED,HTTP_500_INTERNAL_SERVER_ERROR)
 from django.db.models import Q
 from django.db.models import Count,Max,Avg
@@ -344,8 +344,7 @@ class GetProductsByProductType(APIView):
             return Response(products_data,status=HTTP_200_OK)
         else:
             return Response({},HTTP_200_OK)
-
-    
+   
 class GetProductsByProperty(APIView):
 
     def get(self,request,property,value):
@@ -621,6 +620,24 @@ class GetAllReviewsOfUser(APIView):
         else:
             return Response("Credentials were not provided")
 
+class GetMostPopularProducts(APIView):
 
+    def get(self,request):
+        
+        popular_review_items  = UserReviews.objects.filter(score__gt=3.8).order_by('-product__price')[:1000]
+        popular_products_list = []
+        product_ids_list = []
+        for item in popular_review_items:
+            if item.product.id not in product_ids_list:
+                popular_products_list.append(item.product)
+                product_ids_list.append(item.product.id)
+            else:
+                continue
+            
+        most_popular_products_data = ProductsSerializer(popular_products_list[0:12],many=True).data
 
-
+        if popular_review_items:
+            return Response(most_popular_products_data,HTTP_200_OK)
+        else:
+            return Response({},HTTP_200_OK)
+        

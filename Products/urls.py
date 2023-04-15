@@ -2,6 +2,9 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+
+    # FILTERING 
+
     # Search With Filters and sort
     path("products/product_name=<product_name>&filters=<filters>&page=<page>&order_by=<order_by_string>",views.SearchWithFilters.as_view()),
     # Search With Filters only
@@ -12,6 +15,9 @@ urlpatterns = [
     path("products/product_name=<product_name>&page=<page>&order_by=<order_by_string>",views.SearchWithOutFilters.as_view()),
     # Search by name only
     path("products/product_name=<product_name>&page=<page>",views.SearchWithOutFilters.as_view()),
+    
+    # PRODUCTS 
+    
     # Products of home page
     path("products/home",views.ProductsHome.as_view()),
     # Products By Product Type
@@ -26,7 +32,9 @@ urlpatterns = [
     path("products/favorites/user_id=<id>",views.GetUserFavoriteProducts.as_view()),
     # Favorite Product ( Create - Delete )
     path("product/favorites/user_id=<user_id>&product_id=<product_id>",views.FavoriteProduct.as_view()),
-    
+    # Most popular products ( Read )
+    path("products/popular",views.GetMostPopularProducts.as_view()),
+
     # REVIEWS 
     
     # Create user review
