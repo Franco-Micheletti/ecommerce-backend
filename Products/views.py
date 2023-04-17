@@ -204,8 +204,6 @@ class Product(APIView):
          
     def get(self,request,id):
 
-        has_reviews = False
-
         try:
             product = ProductsModel.objects.get(id=id)
         except ProductsModel.DoesNotExist:
@@ -240,15 +238,18 @@ class Product(APIView):
         
         # Get all product's reviews
         try:
-            if user_data:
-                all_reviews          = UserReviews.objects.filter(product=product)
-                reviews_without_user = all_reviews.exclude(user=user_data["user_id"])
-                
+            
+            all_reviews          = UserReviews.objects.filter(product=product)
+            reviews_without_user = all_reviews.exclude(user=user_data["user_id"])
         except:
             all_reviews = UserReviews.objects.filter(product=product)
             
         if all_reviews:
-            reviews_data = UserReviewsSerializer(reviews_without_user,many=True).data
+            try:
+                reviews_data = UserReviewsSerializer(reviews_without_user,many=True).data
+            except:
+                reviews_data = UserReviewsSerializer(all_reviews,many=True).data
+            
             response_data["reviews"] = reviews_data
 
             # Get average score of the product
