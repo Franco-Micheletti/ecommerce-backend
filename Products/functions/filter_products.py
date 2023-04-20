@@ -16,15 +16,15 @@ def filter_products(filters,products):
                 products_list.append(product)
             else:
                 continue
-                
+    else:
+        products_list = products
     # PRICE FILTER
     if "price" in filters_json:
-        min_price = filters_json["price"]["min_price"]
-        max_price = filters_json["price"]["max_price"]
-
+        min_price = filters_json["price"]["min"]
+        max_price = filters_json["price"]["max"]
+        
         def price_range_check(product):
-
-            if product.price > min_price and product.price < max_price:
+            if product.price >= float(min_price) and product.price <= float(max_price):
                 return True
             else:
                 return False

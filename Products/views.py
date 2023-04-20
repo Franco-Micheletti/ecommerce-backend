@@ -38,9 +38,7 @@ class SearchWithFilters(APIView):
                 # Replace speed by shipping days
                 if "speed" in order_by_string:
                     order_by_string.replace("speed","shipping_days")
-                print("STRING",order_by_string)
                 order_by_list = order_by_string.split("+")
-                print("LIST",order_by_list)
                 products = products.order_by(*order_by_list)[0:1000]
 
             if products:
