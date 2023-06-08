@@ -39,6 +39,7 @@ class SearchWithFilters(APIView):
                 if "speed" in order_by_string:
                     order_by_string.replace("speed","shipping_days")
                 order_by_list = order_by_string.split("+")
+                print("LIST: ",order_by_list)
                 products = products.order_by(*order_by_list)[0:1000]
 
             if products:
@@ -96,7 +97,6 @@ class SearchWithOutFilters(APIView):
                         order_by_string = order_by_string.replace("speed","shipping_days")
                     
                     order_by_list = order_by_string.split(",")
-                    
                     products = products.order_by(*order_by_list)[0:1000]
                 
                 product_properties = ProductProperties.objects.filter(product__product_name__icontains=str(product_name))[0:1000]
